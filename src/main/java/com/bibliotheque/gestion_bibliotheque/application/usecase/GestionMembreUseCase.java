@@ -1,5 +1,4 @@
-package com.bibliotheque.gestion_bibliotheque.domain.service;
-
+package com.bibliotheque.gestion_bibliotheque.application.usecase;
 
 import com.bibliotheque.gestion_bibliotheque.domain.entities.Membre;
 import com.bibliotheque.gestion_bibliotheque.domain.repository.MembreRepository;
@@ -9,23 +8,19 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-public class MembreService {
+public class GestionMembreUseCase {
 
     private final MembreRepository membreRepository;
 
-    // Injection de dépendances via constructeur
-    public MembreService(MembreRepository membreRepository) {
+    public GestionMembreUseCase(MembreRepository membreRepository) {
         this.membreRepository = membreRepository;
     }
 
     // === USE CASE: Inscrire un nouveau membre ===
     public Membre inscrireMembre(Membre membre) {
-        // Vérifier que l'email n'existe pas déjà
         if (membreRepository.existsByEmail(membre.getEmail())) {
             throw new IllegalArgumentException("Un membre avec cet email existe déjà: " + membre.getEmail());
         }
-
-        // Sauvegarder le membre
         return membreRepository.save(membre);
     }
 
@@ -59,7 +54,6 @@ public class MembreService {
         Membre membre = membreRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Membre non trouvé avec l'ID: " + id));
 
-        // Mettre à jour les champs
         membre.setNom(membreModifie.getNom());
         membre.setPrenom(membreModifie.getPrenom());
         membre.setEmail(membreModifie.getEmail());
@@ -80,7 +74,6 @@ public class MembreService {
     public void ajusterScore(Long membreId, int points) {
         Membre membre = membreRepository.findById(membreId)
                 .orElseThrow(() -> new IllegalArgumentException("Membre non trouvé"));
-
         membre.ajusterScore(points);
         membreRepository.save(membre);
     }
@@ -89,7 +82,6 @@ public class MembreService {
     public boolean peutEmprunter(Long membreId, int nombreEmpruntsEnCours) {
         Membre membre = membreRepository.findById(membreId)
                 .orElseThrow(() -> new IllegalArgumentException("Membre non trouvé"));
-
         return membre.peutEmprunter(nombreEmpruntsEnCours);
     }
 
@@ -97,7 +89,6 @@ public class MembreService {
     public Integer obtenirQuota(Long membreId) {
         Membre membre = membreRepository.findById(membreId)
                 .orElseThrow(() -> new IllegalArgumentException("Membre non trouvé"));
-
         return membre.getQuotaEmprunt();
     }
 
@@ -105,7 +96,6 @@ public class MembreService {
     public Integer obtenirScore(Long membreId) {
         Membre membre = membreRepository.findById(membreId)
                 .orElseThrow(() -> new IllegalArgumentException("Membre non trouvé"));
-
         return membre.getScoreFiabilite();
     }
 }

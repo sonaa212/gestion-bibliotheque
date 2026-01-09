@@ -1,5 +1,4 @@
-package com.bibliotheque.gestion_bibliotheque.domain.service;
-
+package com.bibliotheque.gestion_bibliotheque.application.usecase;
 
 import com.bibliotheque.gestion_bibliotheque.domain.entities.Emprunt;
 import com.bibliotheque.gestion_bibliotheque.domain.repository.EmpruntRepository;
@@ -10,30 +9,30 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-public class EmpruntService {
+public class GestionEmpruntUseCase {
 
     private final EmpruntRepository empruntRepository;
-    private final LivreService livreService;
-    private final MembreService membreService;
+    private final GestionLivreUseCase gestionLivreUseCase;
+    private final GestionMembreUseCase gestionMembreUseCase;
 
-    public EmpruntService(EmpruntRepository empruntRepository,
-                          LivreService livreService,
-                          MembreService membreService) {
+    public GestionEmpruntUseCase(EmpruntRepository empruntRepository,
+                                 GestionLivreUseCase gestionLivreUseCase,
+                                 GestionMembreUseCase gestionMembreUseCase) {
         this.empruntRepository = empruntRepository;
-        this.livreService = livreService;
-        this.membreService = membreService;
+        this.gestionLivreUseCase = gestionLivreUseCase;
+        this.gestionMembreUseCase = gestionMembreUseCase;
     }
 
     // === USE CASE: Emprunter un livre ===
     public Emprunt emprunterLivre(Long livreId, Long membreId) {
         // 1. Vérifier que le livre existe et est disponible
-        if (!livreService.estDisponible(livreId)) {
+        if (!gestionLivreUseCase.estDisponible(livreId)) {
             throw new IllegalStateException("Le livre n'est pas disponible");
         }
 
         // 2. Vérifier que le membre peut emprunter
         int empruntsEnCours = empruntRepository.countByMembreIdAndStatut(membreId, "EN_COURS");
-        if (!membreService.peutEmprunter(membreId, empruntsEnCours)) {
+        if (!gestionMembreUseCase.peutEmprunter(membreId, empruntsEnCours)) {
             throw new IllegalStateException("Le membre a atteint son quota d'emprunts");
         }
 
@@ -44,7 +43,7 @@ public class EmpruntService {
         Emprunt emprunt = new Emprunt(null, livreId, membreId, dateEmprunt, dateRetourPrevue);
 
         // 4. Décrémenter le nombre d'exemplaires disponibles
-        livreService.emprunterExemplaire(livreId);
+        gestionLivreUseCase.emprunterExemplaire(livreId);
 
         // 5. Sauvegarder l'emprunt
         return empruntRepository.save(emprunt);
@@ -64,13 +63,13 @@ public class EmpruntService {
         emprunt.retourner();
 
         // 3. Incrémenter le nombre d'exemplaires disponibles
-        livreService.retournerExemplaire(emprunt.getLivreId());
+        gestionLivreUseCase.retournerExemplaire(emprunt.getLivreId());
 
         // 4. Ajuster le score du membre
         if (emprunt.estEnRetard()) {
-            membreService.ajusterScore(emprunt.getMembreId(), -10); // Retard: -10 points
+            gestionMembreUseCase.ajusterScore(emprunt.getMembreId(), -10); // Retard: -10 points
         } else {
-            membreService.ajusterScore(emprunt.getMembreId(), 5);   // À temps: +5 points
+            gestionMembreUseCase.ajusterScore(emprunt.getMembreId(), 5);   // À temps: +5 points
         }
 
         // 5. Sauvegarder l'emprunt

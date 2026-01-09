@@ -1,6 +1,4 @@
-package com.bibliotheque.gestion_bibliotheque.domain.service;
-
-
+package com.bibliotheque.gestion_bibliotheque.application.usecase;
 
 import com.bibliotheque.gestion_bibliotheque.domain.entities.Livre;
 import com.bibliotheque.gestion_bibliotheque.domain.repository.LivreRepository;
@@ -10,23 +8,19 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-public class LivreService {
+public class GestionLivreUseCase {
 
     private final LivreRepository livreRepository;
 
-    // Injection de dépendances via constructeur
-    public LivreService(LivreRepository livreRepository) {
+    public GestionLivreUseCase(LivreRepository livreRepository) {
         this.livreRepository = livreRepository;
     }
 
     // === USE CASE: Ajouter un livre au catalogue ===
     public Livre ajouterLivre(Livre livre) {
-        // Vérifier que l'ISBN n'existe pas déjà
         if (livreRepository.findByIsbn(livre.getIsbn()).isPresent()) {
             throw new IllegalArgumentException("Un livre avec cet ISBN existe déjà: " + livre.getIsbn());
         }
-
-        // Sauvegarder le livre
         return livreRepository.save(livre);
     }
 
@@ -70,7 +64,6 @@ public class LivreService {
         Livre livre = livreRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Livre non trouvé avec l'ID: " + id));
 
-        // Mettre à jour les champs
         livre.setTitre(livreModifie.getTitre());
         livre.setAuteur(livreModifie.getAuteur());
         livre.setEditeur(livreModifie.getEditeur());
@@ -97,21 +90,19 @@ public class LivreService {
         return livre.estDisponible();
     }
 
-    // === MÉTHODE MÉTIER: Emprunter un exemplaire (appelé par EmpruntService) ===
+    // === MÉTHODE MÉTIER: Emprunter un exemplaire ===
     public void emprunterExemplaire(Long livreId) {
         Livre livre = livreRepository.findById(livreId)
                 .orElseThrow(() -> new IllegalArgumentException("Livre non trouvé"));
-
-        livre.emprunter(); // Décrémente nombreDisponibles
+        livre.emprunter();
         livreRepository.save(livre);
     }
 
-    // === MÉTHODE MÉTIER: Retourner un exemplaire (appelé par EmpruntService) ===
+    // === MÉTHODE MÉTIER: Retourner un exemplaire ===
     public void retournerExemplaire(Long livreId) {
         Livre livre = livreRepository.findById(livreId)
                 .orElseThrow(() -> new IllegalArgumentException("Livre non trouvé"));
-
-        livre.retourner(); // Incrémente nombreDisponibles
+        livre.retourner();
         livreRepository.save(livre);
     }
 }
