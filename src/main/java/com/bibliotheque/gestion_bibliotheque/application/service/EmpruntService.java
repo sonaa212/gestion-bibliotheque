@@ -1,11 +1,17 @@
-package com.bibliotheque.gestion_bibliotheque.domain.service;
+package com.bibliotheque.gestion_bibliotheque.application.service;
 
 
+import com.bibliotheque.gestion_bibliotheque.adapters.messaging.event.EmpruntCreeEvent;
+import com.bibliotheque.gestion_bibliotheque.adapters.messaging.producer.EmpruntEventProducer;
 import com.bibliotheque.gestion_bibliotheque.domain.entities.Emprunt;
+import com.bibliotheque.gestion_bibliotheque.domain.entities.Livre;
+import com.bibliotheque.gestion_bibliotheque.domain.entities.Membre;
 import com.bibliotheque.gestion_bibliotheque.domain.repository.EmpruntRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,13 +21,19 @@ public class EmpruntService {
     private final EmpruntRepository empruntRepository;
     private final LivreService livreService;
     private final MembreService membreService;
+    private final ReservationService reservationService;
+    private final EmpruntEventProducer empruntEventProducer; // Peut être null si Kafka est désactivé
 
     public EmpruntService(EmpruntRepository empruntRepository,
                           LivreService livreService,
-                          MembreService membreService) {
+                          MembreService membreService,
+                          ReservationService reservationService,
+                          @Autowired(required = false) EmpruntEventProducer empruntEventProducer) {
         this.empruntRepository = empruntRepository;
         this.livreService = livreService;
         this.membreService = membreService;
+        this.reservationService = reservationService;
+        this.empruntEventProducer = empruntEventProducer; // Sera null si Kafka est désactivé
     }
 
     // === USE CASE: Emprunter un livre ===
@@ -47,7 +59,34 @@ public class EmpruntService {
         livreService.emprunterExemplaire(livreId);
 
         // 5. Sauvegarder l'emprunt
-        return empruntRepository.save(emprunt);
+        Emprunt empruntSauvegarde = empruntRepository.save(emprunt);
+
+        // 6. PUBLIER UN ÉVÉNEMENT KAFKA (Architecture Événementielle - EDA)
+        // NOTE: Si Kafka est désactivé, empruntEventProducer sera null
+        if (empruntEventProducer != null) {
+            try {
+                Livre livre = livreService.trouverLivreParId(livreId).orElse(null);
+                Membre membre = membreService.trouverMembreParId(membreId).orElse(null);
+
+                if (livre != null && membre != null) {
+                    EmpruntCreeEvent event = new EmpruntCreeEvent(
+                            empruntSauvegarde.getId(),
+                            livreId,
+                            livre.getTitre(),
+                            membreId,
+                            membre.getNom() + " " + membre.getPrenom(),
+                            LocalDateTime.now(),
+                            dateRetourPrevue.atStartOfDay()
+                    );
+                    empruntEventProducer.publierEmpruntCree(event);
+                }
+            } catch (Exception e) {
+                // Log l'erreur mais ne pas bloquer la transaction
+                System.err.println("Erreur lors de la publication de l'événement Kafka: " + e.getMessage());
+            }
+        }
+
+        return empruntSauvegarde;
     }
 
     // === USE CASE: Retourner un livre ===
@@ -73,7 +112,10 @@ public class EmpruntService {
             membreService.ajusterScore(emprunt.getMembreId(), 5);   // À temps: +5 points
         }
 
-        // 5. Sauvegarder l'emprunt
+        // 5. Notifier la prochaine réservation s'il y en a une
+        reservationService.notifierProchaineReservation(emprunt.getLivreId());
+
+        // 6. Sauvegarder l'emprunt
         return empruntRepository.save(emprunt);
     }
 
@@ -97,10 +139,5 @@ public class EmpruntService {
     // === USE CASE: Obtenir un emprunt par ID ===
     public Optional<Emprunt> trouverEmpruntParId(Long id) {
         return empruntRepository.findById(id);
-    }
-
-    // === USE CASE: Obtenir tous les emprunts ===
-    public List<Emprunt> obtenirTousLesEmprunts() {
-        return empruntRepository.findAll();
     }
 }

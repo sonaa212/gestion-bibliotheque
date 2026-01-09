@@ -1,4 +1,4 @@
-package com.bibliotheque.gestion_bibliotheque.domain.service;
+package com.bibliotheque.gestion_bibliotheque.application.service;
 
 
 import com.bibliotheque.gestion_bibliotheque.domain.entities.Membre;
