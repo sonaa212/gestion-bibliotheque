@@ -1,0 +1,117 @@
+package com.bibliotheque.gestion_bibliotheque.domain.service;
+
+
+
+import com.bibliotheque.gestion_bibliotheque.domain.entities.Livre;
+import com.bibliotheque.gestion_bibliotheque.domain.repository.LivreRepository;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Optional;
+
+@Service
+public class LivreService {
+
+    private final LivreRepository livreRepository;
+
+    // Injection de dépendances via constructeur
+    public LivreService(LivreRepository livreRepository) {
+        this.livreRepository = livreRepository;
+    }
+
+    // === USE CASE: Ajouter un livre au catalogue ===
+    public Livre ajouterLivre(Livre livre) {
+        // Vérifier que l'ISBN n'existe pas déjà
+        if (livreRepository.findByIsbn(livre.getIsbn()).isPresent()) {
+            throw new IllegalArgumentException("Un livre avec cet ISBN existe déjà: " + livre.getIsbn());
+        }
+
+        // Sauvegarder le livre
+        return livreRepository.save(livre);
+    }
+
+    // === USE CASE: Rechercher un livre par ID ===
+    public Optional<Livre> trouverLivreParId(Long id) {
+        return livreRepository.findById(id);
+    }
+
+    // === USE CASE: Rechercher un livre par ISBN ===
+    public Optional<Livre> trouverLivreParIsbn(String isbn) {
+        return livreRepository.findByIsbn(isbn);
+    }
+
+    // === USE CASE: Rechercher des livres par titre ===
+    public List<Livre> rechercherParTitre(String titre) {
+        return livreRepository.findByTitreContaining(titre);
+    }
+
+    // === USE CASE: Rechercher des livres par auteur ===
+    public List<Livre> rechercherParAuteur(String auteur) {
+        return livreRepository.findByAuteurContaining(auteur);
+    }
+
+    // === USE CASE: Rechercher des livres par catégorie ===
+    public List<Livre> rechercherParCategorie(String categorie) {
+        return livreRepository.findByCategorie(categorie);
+    }
+
+    // === USE CASE: Obtenir tous les livres ===
+    public List<Livre> obtenirTousLesLivres() {
+        return livreRepository.findAll();
+    }
+
+    // === USE CASE: Obtenir les livres disponibles ===
+    public List<Livre> obtenirLivresDisponibles() {
+        return livreRepository.findByNombreDisponiblesGreaterThan(0);
+    }
+
+    // === USE CASE: Modifier un livre ===
+    public Livre modifierLivre(Long id, Livre livreModifie) {
+        Livre livre = livreRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Livre non trouvé avec l'ID: " + id));
+
+        // Mettre à jour les champs
+        livre.setTitre(livreModifie.getTitre());
+        livre.setAuteur(livreModifie.getAuteur());
+        livre.setEditeur(livreModifie.getEditeur());
+        livre.setAnneePublication(livreModifie.getAnneePublication());
+        livre.setCategorie(livreModifie.getCategorie());
+        livre.setNombreExemplaires(livreModifie.getNombreExemplaires());
+        livre.setEtatPhysique(livreModifie.getEtatPhysique());
+
+        return livreRepository.save(livre);
+    }
+
+    // === USE CASE: Supprimer un livre ===
+    public void supprimerLivre(Long id) {
+        if (!livreRepository.existsById(id)) {
+            throw new IllegalArgumentException("Livre non trouvé avec l'ID: " + id);
+        }
+        livreRepository.deleteById(id);
+    }
+
+    // === MÉTHODE MÉTIER: Vérifier si un livre est disponible ===
+    public boolean estDisponible(Long livreId) {
+        Livre livre = livreRepository.findById(livreId)
+                .orElseThrow(() -> new IllegalArgumentException("Livre non trouvé"));
+        return livre.estDisponible();
+    }
+
+    // === MÉTHODE MÉTIER: Emprunter un exemplaire (appelé par EmpruntService) ===
+    public void emprunterExemplaire(Long livreId) {
+        Livre livre = livreRepository.findById(livreId)
+                .orElseThrow(() -> new IllegalArgumentException("Livre non trouvé"));
+
+        livre.emprunter(); // Décrémente nombreDisponibles
+        livreRepository.save(livre);
+    }
+
+    // === MÉTHODE MÉTIER: Retourner un exemplaire (appelé par EmpruntService) ===
+    public void retournerExemplaire(Long livreId) {
+        Livre livre = livreRepository.findById(livreId)
+                .orElseThrow(() -> new IllegalArgumentException("Livre non trouvé"));
+
+        livre.retourner(); // Incrémente nombreDisponibles
+        livreRepository.save(livre);
+    }
+}
