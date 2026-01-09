@@ -23,6 +23,37 @@ public class GestionEmpruntUseCase {
         this.gestionMembreUseCase = gestionMembreUseCase;
     }
 
+    // === MÉTHODES PRIVÉES: Logique métier ===
+
+    private boolean estEnRetard(Emprunt emprunt) {
+        if (emprunt.getDateRetourEffective() != null) {
+            return emprunt.getDateRetourEffective().isAfter(emprunt.getDateRetourPrevue());
+        }
+        return LocalDate.now().isAfter(emprunt.getDateRetourPrevue());
+    }
+
+    private int joursDeRetard(Emprunt emprunt) {
+        LocalDate dateReference = emprunt.getDateRetourEffective() != null
+                ? emprunt.getDateRetourEffective()
+                : LocalDate.now();
+
+        if (dateReference.isAfter(emprunt.getDateRetourPrevue())) {
+            return (int) java.time.temporal.ChronoUnit.DAYS.between(
+                    emprunt.getDateRetourPrevue(), dateReference
+            );
+        }
+        return 0;
+    }
+
+    private void calculerPenalite(Emprunt emprunt) {
+        int joursRetard = joursDeRetard(emprunt);
+        if (joursRetard > 0) {
+            emprunt.setPenalite(joursRetard * 1.0); // 1€/jour
+        } else {
+            emprunt.setPenalite(0.0);
+        }
+    }
+
     // === USE CASE: Emprunter un livre ===
     public Emprunt emprunterLivre(Long livreId, Long membreId) {
         // 1. Vérifier que le livre existe et est disponible
@@ -60,17 +91,20 @@ public class GestionEmpruntUseCase {
         }
 
         // 2. Marquer comme retourné et calculer pénalités
-        emprunt.retourner();
+        emprunt.setDateRetourEffective(LocalDate.now());
+        calculerPenalite(emprunt);
 
-        // 3. Incrémenter le nombre d'exemplaires disponibles
-        gestionLivreUseCase.retournerExemplaire(emprunt.getLivreId());
-
-        // 4. Ajuster le score du membre
-        if (emprunt.estEnRetard()) {
+        // 3. Mettre à jour le statut
+        if (estEnRetard(emprunt)) {
+            emprunt.setStatut("RETOURNE_EN_RETARD");
             gestionMembreUseCase.ajusterScore(emprunt.getMembreId(), -10); // Retard: -10 points
         } else {
+            emprunt.setStatut("RETOURNE");
             gestionMembreUseCase.ajusterScore(emprunt.getMembreId(), 5);   // À temps: +5 points
         }
+
+        // 4. Incrémenter le nombre d'exemplaires disponibles
+        gestionLivreUseCase.retournerExemplaire(emprunt.getLivreId());
 
         // 5. Sauvegarder l'emprunt
         return empruntRepository.save(emprunt);

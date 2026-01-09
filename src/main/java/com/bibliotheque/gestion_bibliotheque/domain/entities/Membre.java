@@ -13,7 +13,8 @@ public class Membre {
     private LocalDate dateInscription;
 
     // Constructeurs
-    public Membre() {}
+    public Membre() {
+    }
 
     public Membre(Long id, String nom, String prenom, String email, String typeMembre) {
         this.id = id;
@@ -23,64 +24,71 @@ public class Membre {
         this.typeMembre = typeMembre;
         this.dateInscription = LocalDate.now();
         this.scoreFiabilite = 50; // Score initial
-        this.quotaEmprunt = calculerQuota(typeMembre);
     }
 
     // Getters et Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public String getNom() { return nom; }
-    public void setNom(String nom) { this.nom = nom; }
-
-    public String getPrenom() { return prenom; }
-    public void setPrenom(String prenom) { this.prenom = prenom; }
-
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-
-    public String getTypeMembre() { return typeMembre; }
-    public void setTypeMembre(String typeMembre) {
-        this.typeMembre = typeMembre;
-        this.quotaEmprunt = calculerQuota(typeMembre);
+    public Long getId() {
+        return id;
     }
 
-    public Integer getQuotaEmprunt() { return quotaEmprunt; }
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getNom() {
+        return nom;
+    }
+
+    public void setNom(String nom) {
+        this.nom = nom;
+    }
+
+    public String getPrenom() {
+        return prenom;
+    }
+
+    public void setPrenom(String prenom) {
+        this.prenom = prenom;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getTypeMembre() {
+        return typeMembre;
+    }
+
+    public void setTypeMembre(String typeMembre) {
+        this.typeMembre = typeMembre;
+    }
+
+    public Integer getQuotaEmprunt() {
+        return quotaEmprunt;
+    }
+
     public void setQuotaEmprunt(Integer quotaEmprunt) {
         this.quotaEmprunt = quotaEmprunt;
     }
 
-    public Integer getScoreFiabilite() { return scoreFiabilite; }
+    public Integer getScoreFiabilite() {
+        return scoreFiabilite;
+    }
+
     public void setScoreFiabilite(Integer scoreFiabilite) {
         this.scoreFiabilite = scoreFiabilite;
     }
 
-    public LocalDate getDateInscription() { return dateInscription; }
+    public LocalDate getDateInscription() {
+        return dateInscription;
+    }
+
     public void setDateInscription(LocalDate dateInscription) {
         this.dateInscription = dateInscription;
     }
 
-    // Méthodes métier
-    private Integer calculerQuota(String type) {
-        switch (type.toUpperCase()) {
-            case "ETUDIANT": return 5;
-            case "ENSEIGNANT": return 10;
-            case "PERSONNEL": return 7;
-            default: return 3;
-        }
-    }
-
-    public void ajusterScore(int points) {
-        this.scoreFiabilite += points;
-        if (this.scoreFiabilite < 0) {
-            this.scoreFiabilite = 0;
-        }
-        if (this.scoreFiabilite > 100) {
-            this.scoreFiabilite = 100;
-        }
-    }
-
-    public boolean peutEmprunter(int nombreEmpruntsEnCours) {
-        return nombreEmpruntsEnCours < quotaEmprunt;
-    }
 }

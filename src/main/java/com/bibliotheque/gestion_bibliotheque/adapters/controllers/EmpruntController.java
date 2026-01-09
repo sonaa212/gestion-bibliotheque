@@ -73,4 +73,6 @@ public class EmpruntController {
         List<Emprunt> emprunts = gestionEmpruntUseCase.obtenirEmpruntsEnRetard();
         return ResponseEntity.ok(EmpruntMapper.toDtoList(emprunts));
     }
+
+
 }

@@ -4,6 +4,7 @@ import com.bibliotheque.gestion_bibliotheque.domain.entities.Membre;
 import com.bibliotheque.gestion_bibliotheque.domain.repository.MembreRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,11 +17,27 @@ public class GestionMembreUseCase {
         this.membreRepository = membreRepository;
     }
 
+    // === MÉTHODE PRIVÉE: Calculer le quota ===
+    private Integer calculerQuota(String typeMembre) {
+        switch (typeMembre.toUpperCase()) {
+            case "ETUDIANT": return 5;
+            case "ENSEIGNANT": return 10;
+            case "PERSONNEL": return 7;
+            default: return 3;
+        }
+    }
+
     // === USE CASE: Inscrire un nouveau membre ===
     public Membre inscrireMembre(Membre membre) {
         if (membreRepository.existsByEmail(membre.getEmail())) {
             throw new IllegalArgumentException("Un membre avec cet email existe déjà: " + membre.getEmail());
         }
+
+        // Logique métier : initialiser les valeurs
+        membre.setQuotaEmprunt(calculerQuota(membre.getTypeMembre()));
+        membre.setScoreFiabilite(50); // Score initial
+        membre.setDateInscription(LocalDate.now());
+
         return membreRepository.save(membre);
     }
 
@@ -59,6 +76,9 @@ public class GestionMembreUseCase {
         membre.setEmail(membreModifie.getEmail());
         membre.setTypeMembre(membreModifie.getTypeMembre());
 
+        // Recalculer le quota si le type a changé
+        membre.setQuotaEmprunt(calculerQuota(membreModifie.getTypeMembre()));
+
         return membreRepository.save(membre);
     }
 
@@ -70,11 +90,17 @@ public class GestionMembreUseCase {
         membreRepository.deleteById(id);
     }
 
-    // === USE CASE: Calculer le score de fiabilité ===
+    // === MÉTHODE MÉTIER: Ajuster le score de fiabilité ===
     public void ajusterScore(Long membreId, int points) {
         Membre membre = membreRepository.findById(membreId)
                 .orElseThrow(() -> new IllegalArgumentException("Membre non trouvé"));
-        membre.ajusterScore(points);
+
+        // Logique métier : ajuster le score entre 0 et 100
+        int nouveauScore = membre.getScoreFiabilite() + points;
+        if (nouveauScore < 0) nouveauScore = 0;
+        if (nouveauScore > 100) nouveauScore = 100;
+
+        membre.setScoreFiabilite(nouveauScore);
         membreRepository.save(membre);
     }
 
@@ -82,7 +108,9 @@ public class GestionMembreUseCase {
     public boolean peutEmprunter(Long membreId, int nombreEmpruntsEnCours) {
         Membre membre = membreRepository.findById(membreId)
                 .orElseThrow(() -> new IllegalArgumentException("Membre non trouvé"));
-        return membre.peutEmprunter(nombreEmpruntsEnCours);
+
+        // Logique métier : comparer avec le quota
+        return nombreEmpruntsEnCours < membre.getQuotaEmprunt();
     }
 
     // === MÉTHODE MÉTIER: Obtenir le quota d'un membre ===

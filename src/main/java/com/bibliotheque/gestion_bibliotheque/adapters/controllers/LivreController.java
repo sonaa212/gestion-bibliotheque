@@ -81,4 +81,5 @@ public class LivreController {
         gestionLivreUseCase.supprimerLivre(id);
         return ResponseEntity.noContent().build();
     }
+
 }
