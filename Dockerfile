@@ -1,28 +1,42 @@
-# Utiliser l'image de base Eclipse Temurin (OpenJDK 17)
-FROM eclipse-temurin:17-jdk
+# ==========================================
+# ÉTAPE 1 : BUILD (Maven compile le projet)
+# ==========================================
+FROM maven:3.8.6-eclipse-temurin-17 AS build
 
-# Informations sur le maintainer
 LABEL maintainer="bibliotheque@esiea.fr"
 LABEL description="Application de Gestion de Bibliothèque - Backend Spring Boot"
 LABEL version="1.0"
 
-# Définir le répertoire de travail dans le conteneur
 WORKDIR /app
 
-# Copier le fichier JAR de l'application
-# Le fichier JAR est généré par Maven dans le dossier target/
-COPY target/gestion-bibliotheque-0.0.1-SNAPSHOT.jar app.jar
+# Copier pom.xml et télécharger les dépendances (cache Docker)
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
 
-# Exposer le port 8080 (port par défaut de Spring Boot)
+# Copier le code source
+COPY src ./src
+
+# Compiler le projet (skip tests pour accélérer)
+RUN mvn clean package -DskipTests
+
+# ==========================================
+# ÉTAPE 2 : RUNTIME (Image finale légère)
+# ==========================================
+FROM eclipse-temurin:17-jre
+
+WORKDIR /app
+
+# Copier le JAR depuis l'étape de build
+COPY --from=build /app/target/gestion-bibliotheque-0.0.1-SNAPSHOT.jar app.jar
+
+# Exposer le port
 EXPOSE 8080
 
-# Variables d'environnement par défaut
-ENV SPRING_PROFILES_ACTIVE=default
-ENV KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-ENV KAFKA_ENABLED=true
+# Variables d'environnement par défaut (overridées par Render)
+ENV SPRING_PROFILES_ACTIVE=prod
+ENV KAFKA_ENABLED=false
 
-# Point d'entrée pour exécuter l'application
-# Options JVM pour optimiser les performances en conteneur
+# Point d'entrée optimisé pour le cloud
 ENTRYPOINT ["java", \
             "-XX:+UseContainerSupport", \
             "-XX:MaxRAMPercentage=75.0", \
@@ -30,6 +44,6 @@ ENTRYPOINT ["java", \
             "-jar", \
             "app.jar"]
 
-# Health check pour vérifier que l'application est en bonne santé
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
   CMD curl -f http://localhost:8080/actuator/health || exit 1
